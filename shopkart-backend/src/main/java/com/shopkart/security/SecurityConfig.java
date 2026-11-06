@@ -120,7 +120,12 @@ public class SecurityConfig {
                                 ).authenticated()
 
 
-                                .anyRequest().authenticated()
+                                        .requestMatchers("/api/health").permitAll()
+                                       
+                                        .anyRequest().authenticated()
+
+
+
                 )
                 .addFilterBefore(
                         jwtFilter,
