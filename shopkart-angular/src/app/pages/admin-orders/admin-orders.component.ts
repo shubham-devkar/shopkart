@@ -203,7 +203,7 @@ interface ShopOrder {
 })
 export class AdminOrdersComponent implements OnInit {
 
-  private apiUrl = 'http://localhost:8080/api/orders';
+  private apiUrl = 'https://shopkart-3-fbca.onrender.com/api/orders';
 
   orders: ShopOrder[] = [];
 

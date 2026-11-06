@@ -447,7 +447,7 @@ export class AdminAddProductComponent implements OnInit {
 
     if (/^https?:\/\//i.test(imagePath)) return imagePath;
 
-    return `http://localhost:8080${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    return `https://shopkart-3-fbca.onrender.com${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
   }
 
   onPreviewError(event: Event): void {

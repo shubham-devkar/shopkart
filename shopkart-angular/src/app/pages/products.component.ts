@@ -756,10 +756,10 @@ export class ProductsComponent implements OnInit {
     }
 
     if (imagePath.startsWith('/')) {
-      return `http://localhost:8080${imagePath}`;
+      return `https://shopkart-3-fbca.onrender.com${imagePath}`;
     }
 
-    return `http://localhost:8080/${imagePath}`;
+    return `https://shopkart-3-fbca.onrender.com/${imagePath}`;
   }
 
   // PRODUCT IMAGE

@@ -47,7 +47,7 @@ export interface OrderResponse {
 export class OrderService {
   private readonly http = inject(HttpClient);
 
-  private readonly apiUrl = 'http://localhost:8080/api/orders';
+  private readonly apiUrl = 'https://shopkart-3-fbca.onrender.com/api/orders';
 
   /**
    * Read the login token and create authorization headers.

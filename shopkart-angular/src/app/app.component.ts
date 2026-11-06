@@ -897,7 +897,7 @@ export class AppComponent {
 
       this.profilePhotoUrl = photoUrl.startsWith('http')
         ? photoUrl
-        : 'http://localhost:8080' +
+        : 'https://shopkart-3-fbca.onrender.com' +
           (photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl);
 
     } catch (error) {

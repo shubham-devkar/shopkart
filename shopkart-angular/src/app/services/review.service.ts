@@ -18,7 +18,7 @@ export class ReviewService {
 
   private readonly http = inject(HttpClient);
 
-  private readonly apiUrl = 'http://localhost:8080/api/reviews';
+  private readonly apiUrl = 'https://shopkart-3-fbca.onrender.com/api/reviews';
 
   getReviews(productId: number): Observable<ProductReview[]> {
     return this.http.get<ProductReview[]>(

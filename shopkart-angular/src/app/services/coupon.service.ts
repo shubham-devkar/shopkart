@@ -34,7 +34,7 @@ export interface CouponResponse {
 })
 export class CouponService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/coupons';
+  private readonly apiUrl = 'https://shopkart-3-fbca.onrender.com/api/coupons';
 
   // Admin: Get all coupons
   getAll(): Observable<Coupon[]> {

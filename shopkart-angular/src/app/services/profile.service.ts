@@ -17,8 +17,8 @@ export class ProfileService {
 
   private readonly http = inject(HttpClient);
 
-  private readonly apiUrl = 'http://localhost:8080/api/profile';
-  private readonly serverUrl = 'http://localhost:8080';
+  private readonly apiUrl = 'https://shopkart-3-fbca.onrender.com/api/profile';
+  private readonly serverUrl = 'https://shopkart-3-fbca.onrender.com';
 
   private readonly photoSubject = new BehaviorSubject<string>('');
   readonly photoUrl$ = this.photoSubject.asObservable();

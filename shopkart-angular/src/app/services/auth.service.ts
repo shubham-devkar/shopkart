@@ -18,7 +18,7 @@ export interface AuthUser {
 export class AuthService {
   private http = inject(HttpClient);
 
-  private api = 'http://localhost:8080/api/auth';
+  private api = 'https://shopkart-3-fbca.onrender.com/api/auth';
 
   get currentUser(): AuthUser | null {
     try {

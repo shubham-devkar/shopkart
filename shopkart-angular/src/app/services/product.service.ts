@@ -9,7 +9,7 @@ import { Product } from '../models/product.model';
 })
 export class ProductService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/products';
+  private readonly apiUrl = 'https://shopkart-3-fbca.onrender.com/api/products';
 
   private getAuthHeaders(): HttpHeaders {
     const savedUser = localStorage.getItem('shopkart-user');

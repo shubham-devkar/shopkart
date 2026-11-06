@@ -19,7 +19,7 @@ export interface StatusUpdateRequest {
 })
 export class OrderTrackingService {
 
-  private readonly API_URL = 'http://localhost:8080/api/orders';
+  private readonly API_URL = 'https://shopkart-3-fbca.onrender.com/api/orders';
 
   constructor(private http: HttpClient) {}
 

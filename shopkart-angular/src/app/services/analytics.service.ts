@@ -26,7 +26,7 @@ export class AnalyticsService {
   private http = inject(HttpClient);
 
   private readonly API_URL =
-    'http://localhost:8080/api/admin/analytics/dashboard';
+    'https://shopkart-3-fbca.onrender.com/api/admin/analytics/dashboard';
 
   getDashboard(): Observable<AnalyticsDashboard> {
 
