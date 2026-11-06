@@ -31,12 +31,16 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+
                 .cors(Customizer.withDefaults())
+
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
+
                 .authorizeHttpRequests(auth -> auth
 
                         // Public endpoints
@@ -131,6 +135,7 @@ public class SecurityConfig {
                         // All remaining endpoints require authentication
                         .anyRequest().authenticated()
                 )
+
                 .addFilterBefore(
                         jwtFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -144,24 +149,35 @@ public class SecurityConfig {
 
         CorsConfiguration config = new CorsConfiguration();
 
+        // Allowed frontend origins
         config.setAllowedOriginPatterns(
                 List.of(
                         "http://localhost:4200",
-                        "https://*.onrender.com"
+                        "https://shopkart-5-5d5r.onrender.com"
                 )
         );
 
+        // Allowed HTTP methods
         config.setAllowedMethods(
                 List.of(
-                        "GET", "POST", "PUT", "PATCH",
-                        "DELETE", "OPTIONS"
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS"
                 )
         );
 
+        // Allowed request headers
         config.setAllowedHeaders(
-                List.of("Authorization", "Content-Type")
+                List.of(
+                        "Authorization",
+                        "Content-Type"
+                )
         );
 
+        // Allow credentials
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
