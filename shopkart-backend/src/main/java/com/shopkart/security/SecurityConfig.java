@@ -153,6 +153,7 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(
                 List.of(
                         "http://localhost:4200",
+                        "https://shopkart-0.onrender.com",
                         "https://shopkart-5-5d5r.onrender.com"
                 )
         );
