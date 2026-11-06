@@ -39,17 +39,19 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
 
+                        // Public endpoints
                         .requestMatchers(
+                                "/",
+                                "/favicon.ico",
+                                "/api/health",
                                 "/api/auth/**",
                                 "/profile-photos/**",
-                                "/error"
-                        ).permitAll()
-
-                        .requestMatchers(
+                                "/error",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
 
+                        // Reviews
                         .requestMatchers(
                                 HttpMethod.GET, "/api/reviews/**"
                         ).permitAll()
@@ -62,6 +64,7 @@ public class SecurityConfig {
                                 HttpMethod.DELETE, "/api/reviews/**"
                         ).hasRole("ADMIN")
 
+                        // Products
                         .requestMatchers(
                                 HttpMethod.GET, "/api/products/**"
                         ).permitAll()
@@ -82,50 +85,51 @@ public class SecurityConfig {
                                 HttpMethod.DELETE, "/api/products/**"
                         ).hasRole("ADMIN")
 
-                        .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                "/api/coupons/apply").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                "/api/coupons").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET,
-                                "/api/coupons").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.PATCH,
-                                "/api/coupons/**").hasRole("ADMIN")
+                        // Coupons
+                        .requestMatchers(
+                                HttpMethod.POST, "/api/coupons/apply"
+                        ).authenticated()
 
-                        .requestMatchers("/api/admin/analytics/**").hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.POST, "/api/coupons"
+                        ).hasRole("ADMIN")
 
+                        .requestMatchers(
+                                HttpMethod.GET, "/api/coupons"
+                        ).hasRole("ADMIN")
 
-// Admin can view all customer orders
-                                .requestMatchers(
-                                        HttpMethod.GET, "/api/orders/admin/all"
-                                ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.PATCH, "/api/coupons/**"
+                        ).hasRole("ADMIN")
 
-// Only Admin can update order status
-                                .requestMatchers(
-                                        HttpMethod.PATCH, "/api/orders/*/status"
-                                ).hasRole("ADMIN")
+                        // Admin analytics
+                        .requestMatchers(
+                                "/api/admin/analytics/**"
+                        ).hasRole("ADMIN")
 
-// Logged-in customers can view their own orders
-                                .requestMatchers(
-                                        HttpMethod.GET, "/api/orders"
-                                ).authenticated()
+                        // Orders
+                        .requestMatchers(
+                                HttpMethod.GET, "/api/orders/admin/all"
+                        ).hasRole("ADMIN")
 
-// Logged-in customers can place orders
-                                .requestMatchers(
-                                        HttpMethod.POST, "/api/orders"
-                                ).authenticated()
+                        .requestMatchers(
+                                HttpMethod.PATCH, "/api/orders/*/status"
+                        ).hasRole("ADMIN")
 
-// Customers can view order tracking
-                                .requestMatchers(
-                                        HttpMethod.GET, "/api/orders/*/tracking"
-                                ).authenticated()
+                        .requestMatchers(
+                                HttpMethod.GET, "/api/orders"
+                        ).authenticated()
 
+                        .requestMatchers(
+                                HttpMethod.POST, "/api/orders"
+                        ).authenticated()
 
-                                        .requestMatchers("/api/health").permitAll()
-                                       
-                                        .anyRequest().authenticated()
+                        .requestMatchers(
+                                HttpMethod.GET, "/api/orders/*/tracking"
+                        ).authenticated()
 
-
-
+                        // All remaining endpoints require authentication
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(
                         jwtFilter,
@@ -137,10 +141,14 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(
-                List.of("http://localhost:4200")
+        config.setAllowedOriginPatterns(
+                List.of(
+                        "http://localhost:4200",
+                        "https://*.onrender.com"
+                )
         );
 
         config.setAllowedMethods(
