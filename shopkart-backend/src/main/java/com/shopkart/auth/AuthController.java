@@ -1,8 +1,8 @@
+
 package com.shopkart.auth;
 
 import com.shopkart.security.JwtService;
 
-import jakarta.mail.internet.MimeMessage;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -11,15 +11,16 @@ import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -30,26 +31,31 @@ public class AuthController {
  private final UserRepository users;
  private final PendingEmailRegistrationRepository pendingRepository;
  private final JwtService jwtService;
- private final JavaMailSender mailSender;
 
- private final BCryptPasswordEncoder encoder =
+ private final PasswordEncoder encoder =
          new BCryptPasswordEncoder();
 
  private final SecureRandom secureRandom = new SecureRandom();
 
- @Value("${spring.mail.username}")
- private String mailUsername;
+ private final RestClient restClient = RestClient.create();
+
+ @Value("${mailjet.api-key}")
+ private String mailjetApiKey;
+
+ @Value("${mailjet.secret-key}")
+ private String mailjetSecretKey;
+
+ @Value("${mailjet.from-email}")
+ private String mailjetFromEmail;
 
  public AuthController(
          UserRepository users,
          PendingEmailRegistrationRepository pendingRepository,
-         JwtService jwtService,
-         JavaMailSender mailSender) {
+         JwtService jwtService) {
 
   this.users = users;
   this.pendingRepository = pendingRepository;
   this.jwtService = jwtService;
-  this.mailSender = mailSender;
  }
 
  public record SendOtpRequest(
@@ -82,6 +88,7 @@ public class AuthController {
  ) {}
 
  // STEP 1: Send OTP
+
  @PostMapping("/register/send-otp")
  @Transactional
  public ResponseEntity<?> sendRegistrationOtp(
@@ -115,8 +122,6 @@ public class AuthController {
 
   pending.setName(request.name().trim());
   pending.setEmail(email);
-
-  // Password is hashed before saving.
   pending.setPasswordHash(encoder.encode(request.password()));
 
   if (existingPending) {
@@ -129,7 +134,6 @@ public class AuthController {
 
   String otp = generateOtp();
 
-  // OTP is stored as a BCrypt hash, never as plain text.
   pending.setOtpHash(encoder.encode(otp));
   pending.setExpiresAt(now.plusMinutes(5));
   pending.setLastSentAt(now);
@@ -145,6 +149,7 @@ public class AuthController {
  }
 
  // STEP 2: Verify OTP and create account
+
  @PostMapping("/register/verify-otp")
  @Transactional
  public ResponseEntity<?> verifyRegistrationOtp(
@@ -206,14 +211,11 @@ public class AuthController {
            ));
   }
 
-  // OTP is correct. Only now create the actual user.
   AppUser user = new AppUser();
 
   user.setName(pending.getName());
   user.setEmail(pending.getEmail());
   user.setPasswordHash(pending.getPasswordHash());
-
-  // Public registration can only create USER accounts.
   user.setRole("USER");
 
   AppUser savedUser = users.save(user);
@@ -228,6 +230,7 @@ public class AuthController {
  }
 
  // STEP 3: Resend OTP
+
  @PostMapping("/register/resend-otp")
  @Transactional
  public ResponseEntity<?> resendRegistrationOtp(
@@ -285,7 +288,8 @@ public class AuthController {
   ));
  }
 
- // Existing LOGIN API - kept compatible
+ // EXISTING LOGIN API - NO OTP REQUIRED
+
  @PostMapping("/login")
  public ResponseEntity<?> login(
          @Valid @RequestBody LoginRequest request) {
@@ -313,6 +317,8 @@ public class AuthController {
   );
  }
 
+ // RESEND VALIDATION
+
  private boolean canResend(
          PendingEmailRegistration pending,
          LocalDateTime now) {
@@ -330,14 +336,23 @@ public class AuthController {
   );
  }
 
+ // GENERATE 6 DIGIT OTP
+
  private String generateOtp() {
+
   int number = secureRandom.nextInt(1_000_000);
+
   return String.format("%06d", number);
  }
 
+ // NORMALIZE EMAIL
+
  private String normalizeEmail(String email) {
+
   return email.trim().toLowerCase(Locale.ROOT);
  }
+
+ // MAILJET EMAIL API
 
  private void sendOtpEmail(
          String email,
@@ -345,14 +360,6 @@ public class AuthController {
          String otp) {
 
   try {
-   MimeMessage message = mailSender.createMimeMessage();
-
-   MimeMessageHelper helper =
-           new MimeMessageHelper(message, true, "UTF-8");
-
-   helper.setFrom(mailUsername);
-   helper.setTo(email);
-   helper.setSubject("ShopKart - Email Verification OTP");
 
    String html = """
                     <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px;border:1px solid #eee;border-radius:12px">
@@ -368,19 +375,96 @@ public class AuthController {
                     </div>
                     """.formatted(escapeHtml(name), otp);
 
-   helper.setText(html, true);
+   Map<String, Object> message = Map.of(
+           "From", Map.of(
+                   "Email", mailjetFromEmail,
+                   "Name", "ShopKart"
+           ),
+           "To", List.of(
+                   Map.of("Email", email)
+           ),
+           "Subject", "ShopKart - Email Verification OTP",
+           "TextPart", "Hello " + name
+                   + ", your ShopKart verification OTP is "
+                   + otp + ". It is valid for 5 minutes.",
+           "HTMLPart", html
+   );
 
-   mailSender.send(message);
+   Map<String, Object> payload = Map.of(
+           "Messages", List.of(message)
+   );
+
+   Map<?, ?> result = restClient.post()
+           .uri("https://api.mailjet.com/v3.1/send")
+           .headers(headers ->
+                   headers.setBasicAuth(
+                           mailjetApiKey,
+                           mailjetSecretKey
+                   )
+           )
+           .body(payload)
+           .retrieve()
+           .body(Map.class);
+
+   if (result == null ||
+           !(result.get("Messages") instanceof List<?>)) {
+
+    throw new IllegalStateException(
+            "Mailjet returned an empty response."
+    );
+   }
+
+   List<?> messages = (List<?>) result.get("Messages");
+
+   if (messages.isEmpty()) {
+    throw new IllegalStateException(
+            "Mailjet returned an empty message list."
+    );
+   }
+
+   Object firstMessage = messages.get(0);
+
+   if (!(firstMessage instanceof Map<?, ?>)) {
+    throw new IllegalStateException(
+            "Mailjet returned an unexpected message response."
+    );
+   }
+
+   Map<?, ?> messageResult = (Map<?, ?>) firstMessage;
+
+   if (!"success".equalsIgnoreCase(
+           String.valueOf(messageResult.get("Status"))
+   )) {
+
+    throw new IllegalStateException(
+            "Mailjet rejected the email request: "
+                    + String.valueOf(messageResult.get("Errors"))
+    );
+   }
+
+  } catch (RestClientResponseException exception) {
+
+   throw new RuntimeException(
+           "Mailjet HTTP error: "
+                   + exception.getStatusCode()
+                   + ". Check Mailjet API credentials and sender verification.",
+           exception
+   );
 
   } catch (Exception exception) {
+
    throw new RuntimeException(
-           "Unable to send verification email. Please check Gmail SMTP configuration.",
+           "Unable to send verification email through Mailjet. "
+                   + "Check API credentials and verified sender email.",
            exception
    );
   }
  }
 
+ // ESCAPE HTML
+
  private String escapeHtml(String value) {
+
   return value
           .replace("&", "&amp;")
           .replace("<", "&lt;")
@@ -389,7 +473,11 @@ public class AuthController {
           .replace("'", "&#39;");
  }
 
- private AuthResponse response(AppUser user, String message) {
+ // AUTH RESPONSE WITH JWT
+
+ private AuthResponse response(
+         AppUser user,
+         String message) {
 
   String token = jwtService.generateToken(
           user.getEmail(),

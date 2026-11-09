@@ -1,28 +1,35 @@
-
 package com.shopkart.service;
 
 import com.shopkart.entity.OrderItem;
 import com.shopkart.entity.ShopOrder;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private static final Logger log =
+            LoggerFactory.getLogger(EmailService.class);
 
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    private final RestClient restClient = RestClient.create();
+
+    @Value("${mailjet.api-key}")
+    private String apiKey;
+
+    @Value("${mailjet.secret-key}")
+    private String secretKey;
+
+    @Value("${mailjet.from-email}")
+    private String fromEmail;
 
     public void sendOrderConfirmation(ShopOrder order) {
-
-        SimpleMailMessage message = new SimpleMailMessage();
-
-        message.setTo(order.getCustomerEmail());
-
-        message.setSubject("ShopKart | Your Order Has Been Confirmed!");
 
         StringBuilder body = new StringBuilder();
 
@@ -32,14 +39,10 @@ public class EmailService {
 
         body.append("GREAT NEWS! YOUR ORDER IS CONFIRMED!\n");
         body.append("==================================================\n\n");
-
-        body.append("Thank you for choosing ShopKart!\n");
-        body.append("We are delighted to inform you that your order ")
-                .append("has been successfully placed.\n\n");
+        body.append("Thank you for choosing ShopKart!\n\n");
 
         body.append("ORDER INFORMATION\n");
         body.append("--------------------------------------------------\n");
-
         body.append("Order ID       : ")
                 .append(order.getId()).append("\n");
 
@@ -66,32 +69,72 @@ public class EmailService {
             body.append("--------------------------------------------------\n");
         }
 
-        body.append("\n");
-
-        body.append("TOTAL AMOUNT: Rs. ")
+        body.append("\nTOTAL AMOUNT: Rs. ")
                 .append(order.getTotalAmount()).append("\n\n");
 
-        body.append("==================================================\n");
-
-        body.append("WHAT'S NEXT?\n");
-        body.append("Your order is now being processed. ")
-                .append("We will keep you updated on its progress.\n\n");
-
-        body.append("Thank you for shopping with ShopKart.\n");
-        body.append("We truly appreciate your trust in us!\n\n");
-
-        body.append("Happy Shopping!\n\n");
-
+        body.append("Your order is now being processed.\n");
+        body.append("Thank you for shopping with ShopKart!\n\n");
         body.append("Warm Regards,\n");
-        body.append("ShopKart Customer Support Team\n");
-        body.append("Your Shopping, Our Priority!\n");
+        body.append("ShopKart Customer Support Team\n\n");
+        body.append("This is an automatically generated email.");
 
-        body.append("==================================================\n");
-        body.append("This is an automatically generated email. ")
-                .append("Please do not reply to this message.");
+        try {
 
-        message.setText(body.toString());
+            Map<String, Object> payload = Map.of(
+                    "Messages", List.of(
+                            Map.of(
+                                    "From", Map.of(
+                                            "Email", fromEmail,
+                                            "Name", "ShopKart"
+                                    ),
+                                    "To", List.of(
+                                            Map.of(
+                                                    "Email", order.getCustomerEmail(),
+                                                    "Name", order.getCustomerName()
+                                            )
+                                    ),
+                                    "Subject",
+                                    "ShopKart | Your Order Has Been Confirmed!",
+                                    "TextPart",
+                                    body.toString()
+                            )
+                    )
+            );
 
-        mailSender.send(message);
+            Map<?, ?> response = restClient.post()
+                    .uri("https://api.mailjet.com/v3.1/send")
+                    .headers(headers ->
+                            headers.setBasicAuth(apiKey, secretKey))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (response == null
+                    || !(response.get("Messages") instanceof List<?> messages)
+                    || messages.isEmpty()
+                    || !(messages.get(0) instanceof Map<?, ?> result)
+                    || !"success".equalsIgnoreCase(
+                    String.valueOf(result.get("Status")))) {
+
+                log.error(
+                        "Mailjet did not confirm order email delivery request."
+                );
+                return;
+            }
+
+            log.info(
+                    "Order confirmation email accepted by Mailjet for order ID: {}",
+                    order.getId()
+            );
+
+        } catch (Exception e) {
+
+            log.error(
+                    "Unable to send order confirmation email for order ID: {}",
+                    order.getId(),
+                    e
+            );
+        }
     }
 }
