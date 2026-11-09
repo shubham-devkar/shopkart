@@ -12,18 +12,28 @@ export interface AuthUser {
   message: string;
 }
 
+export interface ApiMessage {
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
+
   private http = inject(HttpClient);
 
+  // Existing production API URL
   private api = 'https://shopkart-3-fbca.onrender.com/api/auth';
 
   get currentUser(): AuthUser | null {
     try {
       const storedUser = localStorage.getItem('shopkart-user');
-      return storedUser ? JSON.parse(storedUser) as AuthUser : null;
+
+      return storedUser
+        ? JSON.parse(storedUser) as AuthUser
+        : null;
+
     } catch {
       return null;
     }
@@ -33,26 +43,65 @@ export class AuthService {
     return !!this.currentUser?.token;
   }
 
-  register(
+  // STEP 1: Send registration OTP
+  sendRegistrationOtp(
     name: string,
     email: string,
     password: string
+  ): Observable<ApiMessage> {
+
+    return this.http.post<ApiMessage>(
+      `${this.api}/register/send-otp`,
+      {
+        name,
+        email,
+        password
+      }
+    );
+  }
+
+  // STEP 2: Verify OTP and create account
+  verifyRegistrationOtp(
+    email: string,
+    otp: string
   ): Observable<AuthUser> {
+
     return this.http.post<AuthUser>(
-      `${this.api}/register`,
-      { name, email, password }
+      `${this.api}/register/verify-otp`,
+      {
+        email,
+        otp
+      }
     ).pipe(
       tap(user => this.save(user))
     );
   }
 
+  // STEP 3: Resend OTP
+  resendRegistrationOtp(
+    email: string
+  ): Observable<ApiMessage> {
+
+    return this.http.post<ApiMessage>(
+      `${this.api}/register/resend-otp`,
+      {
+        email
+      }
+    );
+  }
+
+  // EXISTING LOGIN API - unchanged
   login(
     email: string,
     password: string
   ): Observable<AuthUser> {
+
     return this.http.post<AuthUser>(
       `${this.api}/login`,
-      { email, password }
+      {
+        email,
+        password
+      }
     ).pipe(
       tap(user => this.save(user))
     );
@@ -63,6 +112,9 @@ export class AuthService {
   }
 
   private save(user: AuthUser): void {
-    localStorage.setItem('shopkart-user', JSON.stringify(user));
+    localStorage.setItem(
+      'shopkart-user',
+      JSON.stringify(user)
+    );
   }
 }
